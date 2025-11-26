@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZIP-Diff Vergleichstool</title>
+    <title data-i18n="title">ZIP-Diff Vergleichstool</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
@@ -47,16 +47,16 @@
             font-size: 1rem;
         }
 
-        .debug-btn {
+        /* Language selector */
+        .lang-select {
             position: absolute;
             top: 10px;
             right: 10px;
             background: rgba(255,255,255,0.2);
-            border: none;
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.35);
+            padding: 6px 8px;
+            border-radius: 6px;
         }
 
         .tabs {
@@ -344,21 +344,6 @@
             border-left: 4px solid #27ae60;
         }
 
-        .debug {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 12px;
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 300px;
-            z-index: 2000;
-            display: none;
-        }
 		
 		/* PATCH: Kompakteres Layout, ca. 30% kleiner */
 		.header { padding: 14px !important; }
@@ -369,49 +354,45 @@
 		.drop-message { padding: 28px !important; }
 		.result-container { padding: 14px !important; max-height: 420px !important; }
 		.loading { padding: 42px !important; }
-		.debug { padding: 10px !important; width: 210px !important; }
 		.file-selector .icon { font-size: 2.1rem !important; }
 
     </style>
 </head>
 <body>
-    <!-- Debug Panel -->
-    <div id="debug-panel" class="debug">
-        <strong>🐛 Debug Info:</strong><br>
-        <div id="debug-content">Initializing...</div>
-    </div>
-
     <!-- Global Drop Zone -->
     <div id="drop-zone-all" class="drop-zone-all">
         <div class="drop-message">
-            📁 Dateien hier ablegen<br>
-            <small>Automatische Zuordnung zu Referenz- und Vergleichsdatei</small>
+            <span data-i18n="drop_here">📁 Dateien hier ablegen</span><br>
+            <small data-i18n="drop_hint">Automatische Zuordnung zu Referenz- und Vergleichsdatei</small>
         </div>
     </div>
 
     <div class="container">
         <div class="header">
-            <h1>🔍 ZIP-Diff Tool</h1>
-            <p>Vergleichen Sie ZIP-Dateien oder Textdateien miteinander</p>
-            <button class="debug-btn" onclick="toggleDebug()">🐛 Debug</button>
+            <h1 data-i18n="app_title">🔍 ZIP-Diff Tool</h1>
+            <p data-i18n="subtitle">Vergleichen Sie ZIP-Dateien oder Textdateien miteinander</p>
+            <select id="lang" class="lang-select" title="Language">
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+            </select>
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab(0)">📁 Dateien auswählen</button>
-            <button class="tab" id="tab-result" onclick="switchTab(1)" disabled>📊 Vergleichsergebnis</button>
+            <button class="tab active" onclick="switchTab(0)"><span data-i18n="tab_select">📁 Dateien auswählen</span></button>
+            <button class="tab" id="tab-result" onclick="switchTab(1)" disabled><span data-i18n="tab_result">📊 Vergleichsergebnis</span></button>
         </div>
 
         <div id="tab-0" class="tab-content active">
             <div class="file-selector" onclick="selectFile1()">
                 <div class="icon">📄</div>
-                <div class="text">Referenzdatei auswählen oder hierher ziehen</div>
+                <div class="text" data-i18n="select_ref">Referenzdatei auswählen oder hierher ziehen</div>
                 <div class="filename" id="file1-name"></div>
                 <input type="file" id="file1" accept=".zip,.txt,.json,.xml,.csv,.log,.md,.config,.ini,.ps1,.bat,.cmd,.js,.css,.html,.sql">
             </div>
 
             <div class="file-selector" onclick="selectFile2()">
                 <div class="icon">📄</div>
-                <div class="text">Vergleichsdatei auswählen oder hierher ziehen</div>
+                <div class="text" data-i18n="select_cmp">Vergleichsdatei auswählen oder hierher ziehen</div>
                 <div class="filename" id="file2-name"></div>
                 <input type="file" id="file2" accept=".zip,.txt,.json,.xml,.csv,.log,.md,.config,.ini,.ps1,.bat,.cmd,.js,.css,.html,.sql">
             </div>
@@ -419,41 +400,41 @@
             <div class="options">
                 <div class="checkbox-wrapper">
                     <input type="checkbox" id="fastMode">
-                    <label for="fastMode">📋 Nur Unterschiede auf Dateiebene anzeigen (nur für ZIP-Dateien)</label>
+                    <label for="fastMode" data-i18n="opt_fast">📋 Nur Unterschiede auf Dateiebene anzeigen (nur für ZIP-Dateien)</label>
                 </div>
                 
                 <div class="checkbox-wrapper" style="margin-top: 12px;">
                     <input type="checkbox" id="useRegexFilter">
-                    <label for="useRegexFilter">🔍 Zeilen mit Regex-Pattern ignorieren</label>
+                    <label for="useRegexFilter" data-i18n="opt_regex">🔍 Zeilen mit Regex-Pattern ignorieren</label>
                 </div>
                 
                 <div id="regex-input-container" style="margin-top: 8px; display: none;">
                     <input type="text" id="regexPattern" placeholder="z.B. ^\d{4}-\d{2}-\d{2}.*timestamp.*" 
                            value="(created_at|updated_at|published_at).*\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
                            style="width: 100%; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-family: monospace; font-size: 12px;">
-                    <small style="color: #6c757d; display: block; margin-top: 3px; font-size: 11px;">
+                    <small style="color: #6c757d; display: block; margin-top: 3px; font-size: 11px;" data-i18n="regex_hint">
                         💡 Aktuelles Pattern filtert JSON-Zeilen mit created_at, updated_at, published_at + Timestamps
                     </small>
                 </div>
 
                 <div class="checkbox-wrapper" style="margin-top: 12px;">
                     <input type="checkbox" id="customContext">
-                    <label for="customContext">📄 Kontext-Zeilen anpassen</label>
+                    <label for="customContext" data-i18n="opt_context">📄 Kontext-Zeilen anpassen</label>
                 </div>
 
                 <div id="context-input-container" style="margin-top: 8px; display: none;">
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 5px;">
-                            <label for="contextBefore" style="font-size: 0.9rem; color: #495057;">Davor:</label>
+                            <label for="contextBefore" style="font-size: 0.9rem; color: #495057;" data-i18n="ctx_before">Davor:</label>
                             <input type="number" id="contextBefore" value="3" min="0" max="10" 
                                    style="width: 50px; padding: 4px; border: 1px solid #dee2e6; border-radius: 3px; text-align: center; font-size: 12px;">
                         </div>
                         <div style="display: flex; align-items: center; gap: 5px;">
-                            <label for="contextAfter" style="font-size: 0.9rem; color: #495057;">Danach:</label>
+                            <label for="contextAfter" style="font-size: 0.9rem; color: #495057;" data-i18n="ctx_after">Danach:</label>
                             <input type="number" id="contextAfter" value="3" min="0" max="10" 
                                    style="width: 50px; padding: 4px; border: 1px solid #dee2e6; border-radius: 3px; text-align: center; font-size: 12px;">
                         </div>
-                        <small style="color: #6c757d; font-size: 11px;">Zeilen vor/nach Änderungen</small>
+                        <small style="color: #6c757d; font-size: 11px;" data-i18n="ctx_hint">Zeilen vor/nach Änderungen</small>
                     </div>
                 </div>
             </div>
@@ -463,17 +444,17 @@
             <div id="result-container" class="result-container">
                 <div class="loading">
                     <div class="spinner"></div>
-                    <div>Dateien werden verglichen...</div>
+                    <div data-i18n="loading">Dateien werden verglichen...</div>
                 </div>
             </div>
         </div>
 
         <div class="buttons">
-            <button class="btn btn-warning" onclick="resetTool()">🔄 Neustart</button>
+            <button class="btn btn-warning" onclick="resetTool()" data-i18n="btn_reset">🔄 Neustart</button>
             <div>
-                <button class="btn btn-secondary" id="btn-back" onclick="switchTab(0)" disabled>← Zurück</button>
-                <button class="btn btn-primary" id="btn-next" onclick="compareFiles()" disabled>Vergleichen →</button>
-                <button class="btn btn-success" id="btn-save" onclick="saveResult()" disabled style="display: none;">💾 Speichern</button>
+                <button class="btn btn-secondary" id="btn-back" onclick="switchTab(0)" disabled data-i18n="btn_back">← Zurück</button>
+                <button class="btn btn-primary" id="btn-next" onclick="compareFiles()" disabled data-i18n="btn_compare">Vergleichen →</button>
+                <button class="btn btn-success" id="btn-save" onclick="saveResult()" disabled style="display: none;" data-i18n="btn_save">💾 Speichern</button>
             </div>
         </div>
     </div>
@@ -484,27 +465,105 @@
         let file1 = null;
         let file2 = null;
         let comparisonResult = '';
-        let debugMode = false;
 
-        // Debug functions
-        function toggleDebug() {
-            debugMode = !debugMode;
-            const panel = document.getElementById('debug-panel');
-            panel.style.display = debugMode ? 'block' : 'none';
-            updateDebug();
+        // i18n
+        const translations = {
+            de: {
+                title: 'ZIP-Diff Vergleichstool',
+                app_title: '🔍 ZIP-Diff Tool',
+                subtitle: 'Vergleichen Sie ZIP-Dateien oder Textdateien miteinander',
+                tab_select: '📁 Dateien auswählen',
+                tab_result: '📊 Vergleichsergebnis',
+                select_ref: 'Referenzdatei auswählen oder hierher ziehen',
+                select_cmp: 'Vergleichsdatei auswählen oder hierher ziehen',
+                opt_fast: '📋 Nur Unterschiede auf Dateiebene anzeigen (nur für ZIP-Dateien)',
+                opt_regex: '🔍 Zeilen mit Regex-Pattern ignorieren',
+                regex_hint: '💡 Aktuelles Pattern filtert JSON-Zeilen mit created_at, updated_at, published_at + Timestamps',
+                opt_context: '📄 Kontext-Zeilen anpassen',
+                ctx_before: 'Davor:',
+                ctx_after: 'Danach:',
+                ctx_hint: 'Zeilen vor/nach Änderungen',
+                loading: 'Dateien werden verglichen...',
+                btn_reset: '🔄 Neustart',
+                btn_back: '← Zurück',
+                btn_compare: 'Vergleichen →',
+                btn_save: '💾 Speichern',
+                drop_here: '📁 Dateien hier ablegen',
+                drop_hint: 'Automatische Zuordnung zu Referenz- und Vergleichsdatei',
+                msg_autoassign: '📁 {n} Dateien empfangen. Die ersten beiden wurden automatisch zugeordnet.',
+                msg_replaced_ref: '🔄 Referenzdatei wurde ersetzt.',
+                download_success: '✅ Bericht wurde erfolgreich heruntergeladen!'
+            },
+            en: {
+                title: 'ZIP Diff Tool',
+                app_title: '🔍 ZIP Diff Tool',
+                subtitle: 'Compare ZIP archives or text files',
+                tab_select: '📁 Select files',
+                tab_result: '📊 Comparison result',
+                select_ref: 'Choose reference file or drop here',
+                select_cmp: 'Choose comparison file or drop here',
+                opt_fast: '📋 Show differences at file level only (ZIP files only)',
+                opt_regex: '🔍 Ignore lines matching regex pattern',
+                regex_hint: '💡 Current pattern filters JSON lines with created_at, updated_at, published_at + timestamps',
+                opt_context: '📄 Customize context lines',
+                ctx_before: 'Before:',
+                ctx_after: 'After:',
+                ctx_hint: 'Lines before/after changes',
+                loading: 'Comparing files...',
+                btn_reset: '🔄 Reset',
+                btn_back: '← Back',
+                btn_compare: 'Compare →',
+                btn_save: '💾 Save',
+                drop_here: '📁 Drop files here',
+                drop_hint: 'Auto-assignment to reference and comparison file',
+                msg_autoassign: '📁 Received {n} file(s). The first two were auto-assigned.',
+                msg_replaced_ref: '🔄 Reference file was replaced.',
+                download_success: '✅ Report downloaded successfully!'
+            }
+        };
+
+        function getLang() {
+            const stored = localStorage.getItem('lang');
+            if (stored) return stored;
+            return (navigator.language || 'de').startsWith('de') ? 'de' : 'en';
         }
 
-        function updateDebug() {
-            if (!debugMode) return;
-            const content = document.getElementById('debug-content');
-            content.innerHTML = `
-                File1: ${file1 ? file1.name : 'None'}<br>
-                File2: ${file2 ? file2.name : 'None'}<br>
-                Can Compare: ${file1 && file2 ? 'Yes' : 'No'}<br>
-                Current Tab: ${currentTab}<br>
-                Time: ${new Date().toLocaleTimeString()}
-            `;
+        function setLang(lang) {
+            localStorage.setItem('lang', lang);
+            document.documentElement.setAttribute('lang', lang);
+            translatePage();
         }
+
+        function t(key, vars) {
+            const lang = document.documentElement.getAttribute('lang') || 'de';
+            let str = (translations[lang] && translations[lang][key]) || (translations['de'] && translations['de'][key]) || '';
+            if (vars) {
+                Object.keys(vars).forEach(k => {
+                    str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+                });
+            }
+            return str;
+        }
+
+        function translatePage() {
+            const lang = document.documentElement.getAttribute('lang') || 'de';
+            // Update all elements with data-i18n
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (!key) return;
+                if (el.tagName === 'TITLE') {
+                    document.title = t(key);
+                } else if (el.tagName === 'INPUT' && el.type === 'text' && el.placeholder) {
+                    // if input wants translated placeholder, keep as is for now
+                    // Optional: could use data-i18n-placeholder
+                } else {
+                    el.innerHTML = t(key);
+                }
+            });
+            // Buttons may carry arrows/icons in translations already
+        }
+
+        // (Debug option removed)
 
         // File selection functions
         function selectFile1() {
@@ -520,14 +579,12 @@
             file1 = file;
             updateFileDisplay('file1-name', file1);
             updateButtons();
-            updateDebug();
         }
 
         function handleFile2(file) {
             file2 = file;
             updateFileDisplay('file2-name', file2);
             updateButtons();
-            updateDebug();
         }
 
         function updateFileDisplay(elementId, file) {
@@ -581,6 +638,13 @@
             setupGlobalDragAndDrop();
             setupDragAndDrop('file1', handleFile1);
             setupDragAndDrop('file2', handleFile2);
+            // Language selector
+            const sel = document.getElementById('lang');
+            const initLang = localStorage.getItem('lang') || ((navigator.language || 'de').startsWith('de') ? 'de' : 'en');
+            document.documentElement.setAttribute('lang', initLang);
+            sel.value = initLang;
+            translatePage();
+            sel.addEventListener('change', (e) => setLang(e.target.value));
         }
 
         function setupGlobalDragAndDrop() {
@@ -636,7 +700,7 @@
             if (files.length >= 2) {
                 handleFile1(files[0]);
                 handleFile2(files[1]);
-                showMessage(`📁 ${files.length} Dateien empfangen. Die ersten beiden wurden automatisch zugeordnet.`, 'success');
+                showMessage(t('msg_autoassign', { n: files.length }), 'success');
                 console.log(`✅ Auto-assigned: ${files[0].name} → File1, ${files[1].name} → File2`);
             } else if (files.length === 1) {
                 if (!file1) {
@@ -648,7 +712,7 @@
                 } else {
                     handleFile1(files[0]);
                     console.log(`🔄 ${files[0].name} → File1 (replaced)`);
-                    showMessage('🔄 Referenzdatei wurde ersetzt.', 'success');
+                    showMessage(t('msg_replaced_ref'), 'success');
                 }
             }
         }
@@ -727,7 +791,6 @@
 
             currentTab = index;
             updateTabButtons();
-            updateDebug();
         }
 
         function updateTabButtons() {
@@ -766,13 +829,12 @@
             document.getElementById('result-container').innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <div>Dateien werden verglichen...</div>
+                    <div>${t('loading')}</div>
                 </div>
             `;
             
             switchTab(0);
             updateButtons();
-            updateDebug();
         }
 
         // Comparison functions
@@ -787,7 +849,7 @@
             resultContainer.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <div>Dateien werden verglichen...</div>
+                    <div>${t('loading')}</div>
                     <div style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
                         ${file1.name} vs ${file2.name}
                     </div>
@@ -1338,44 +1400,18 @@
         }
 
 		function applyRegexFilter(content) {
-			console.log('[DEBUG] applyRegexFilter wurde aufgerufen', content?.length);
-			
 			const useFilter = document.getElementById('useRegexFilter').checked;
 			if (!useFilter) return content;
 
 			const pattern = document.getElementById('regexPattern').value.trim();
-
-			console.log('PATTERN:', pattern);
-			console.log('Test-Zeile:', content[0]);
-			console.log('Pattern match:', new RegExp(pattern, 'i').test(content[0]));			
-            
-            try {
-                const regex = new RegExp(pattern, 'i');
-                const filteredContent = content.filter(line => !regex.test(line));
-                
-                console.log(`🔍 Regex-Filter "${pattern}":`);
-                console.log(`📥 Input: ${content.length} Zeilen`);
-                console.log(`📤 Output: ${filteredContent.length} Zeilen`);
-                console.log(`🗑️ Filtered out: ${content.length - filteredContent.length} Zeilen`);
-                
-                // Log first few filtered lines as examples
-                const filteredOut = content.filter(line => regex.test(line));
-                if (filteredOut.length > 0) {
-                    console.log(`💡 Beispiele gefilterter Zeilen:`, filteredOut.slice(0, 5));
-                }
-                
-                // Log first few lines that were NOT filtered to check pattern
-                const notFiltered = content.filter(line => !regex.test(line) && line.includes('_at'));
-                if (notFiltered.length > 0) {
-                    console.log(`⚠️ Zeilen mit '_at' die NICHT gefiltert wurden:`, notFiltered.slice(0, 3));
-                }
-                
-                return filteredContent;
-            } catch (e) {
-                console.warn('⚠️ Ungültiges Regex-Pattern:', pattern, e);
-                return content;
-            }
-        }
+			try {
+				const regex = new RegExp(pattern, 'i');
+				return content.filter(line => !regex.test(line));
+			} catch (e) {
+				console.warn('⚠️ Ungültiges Regex-Pattern:', pattern, e);
+				return content;
+			}
+		}
 
         async function readTextFile(file) {
             return new Promise((resolve, reject) => {
@@ -1484,7 +1520,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showMessage('✅ Bericht wurde erfolgreich heruntergeladen!', 'success');
+            showMessage(t('download_success'), 'success');
         }
 
         // Initialize when DOM is ready
@@ -1492,7 +1528,6 @@
             setupEventListeners();
             updateButtons();
             updateTabButtons();
-            updateDebug();
         });
     </script>
 </body>
