@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZIP-Diff Vergleichstool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .debug-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            background: #e9ecef;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab.active {
+            background: white;
+            color: #3498db;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #3498db;
+        }
+
+        .tab:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+            min-height: 500px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .file-selector {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-selector:hover {
+            border-color: #3498db;
+            background: #e3f2fd;
+        }
+
+        .file-selector.has-file {
+            border-color: #27ae60;
+            background: #d4edda;
+        }
+
+        .file-selector.drag-over {
+            border-color: #3498db;
+            background: #e3f2fd;
+            transform: scale(1.02);
+        }
+
+        .file-selector input[type="file"] {
+            display: none;
+        }
+
+        .file-selector .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.6;
+        }
+
+        .file-selector .text {
+            font-size: 1.1rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .file-selector .filename {
+            font-weight: bold;
+            color: #27ae60;
+            word-break: break-all;
+            padding: 8px;
+            background: rgba(39, 174, 96, 0.1);
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .drop-zone-all {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(52, 152, 219, 0.8);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .drop-zone-all.active {
+            display: flex;
+        }
+
+        .drop-message {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            text-align: center;
+            font-size: 1.5rem;
+            color: #2c3e50;
+            border: 3px dashed #3498db;
+        }
+
+        .options {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #3498db;
+        }
+
+        .checkbox-wrapper label {
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+
+        .result-container {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #f8f8f2;
+            max-height: 600px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .loading .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 40px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #229954;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e67e22;
+        }
+
+        /* Syntax highlighting for diff output */
+        .diff-added { color: #a6e22e; }
+        .diff-removed { color: #f92672; }
+        .diff-info { color: #66d9ef; }
+        .diff-header { color: #fd971f; font-weight: bold; }
+        .diff-summary { color: #e6db74; font-weight: bold; }
+        .diff-changed { color: #e6db74; }
+        .diff-missing-in-first { color: #ae81ff; }
+        .diff-missing-in-second { color: #f92672; }
+
+        .error {
+            color: #e74c3c;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .success {
+            color: #27ae60;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .debug {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            z-index: 2000;
+            display: none;
+        }
+		
+		/* PATCH: Kompakteres Layout, ca. 30% kleiner */
+		.header { padding: 14px !important; }
+		.tab-content { padding: 28px !important; min-height: 350px !important; }
+		.file-selector { padding: 20px !important; margin-bottom: 17px !important; }
+		.options { padding: 14px !important; margin-bottom: 21px !important; }
+		.buttons { padding: 21px 28px !important; }
+		.drop-message { padding: 28px !important; }
+		.result-container { padding: 14px !important; max-height: 420px !important; }
+		.loading { padding: 42px !important; }
+		.debug { padding: 10px !important; width: 210px !important; }
+		.file-selector .icon { font-size: 2.1rem !important; }
+
+    </style>
+</head>
+<body>
+    <!-- Debug Panel -->
+    <div id="debug-panel" class="debug">
+        <strong>🐛 Debug Info:</strong><br>
+        <div id="debug-content">Initializing...</div>
+    </div>
+
+    <!-- Global Drop Zone -->
+    <div id="drop-zone-all" class="drop-zone-all">
+        <div class="drop-message">
+            📁 Dateien hier ablegen<br>
+            <small>Automatische Zuordnung zu Referenz- und Vergleichsdatei</small>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔍 ZIP-Diff Tool</h1>
+            <p>Vergleichen Sie ZIP-Dateien oder Textdateien miteinander</p>
+            <button class="debug-btn" onclick="toggleDebug()">🐛 Debug</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(0)">📁 Dateien auswählen</button>
+            <button class="tab" id="tab-result" onclick="switchTab(1)" disabled>📊 Vergleichsergebnis</button>
+        </div>
+
+        <div id="tab-0" class="tab-content active">
+            <div class="file-selector" onclick="selectFile1()">
+                <div class="icon">📄</div>
+                <div class="text">Referenzdatei auswählen oder hierher ziehen</div>
+                <div class="filename" id="file1-name"></div>
+                <input type="file" id="file1" accept=".zip,.txt,.json,.xml,.csv,.log,.md,.config,.ini,.ps1,.bat,.cmd,.js,.css,.html,.sql">
+            </div>
+
+            <div class="file-selector" onclick="selectFile2()">
+                <div class="icon">📄</div>
+                <div class="text">Vergleichsdatei auswählen oder hierher ziehen</div>
+                <div class="filename" id="file2-name"></div>
+                <input type="file" id="file2" accept=".zip,.txt,.json,.xml,.csv,.log,.md,.config,.ini,.ps1,.bat,.cmd,.js,.css,.html,.sql">
+            </div>
+
+            <div class="options">
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" id="fastMode">
+                    <label for="fastMode">📋 Nur Unterschiede auf Dateiebene anzeigen (nur für ZIP-Dateien)</label>
+                </div>
+                
+                <div class="checkbox-wrapper" style="margin-top: 12px;">
+                    <input type="checkbox" id="useRegexFilter">
+                    <label for="useRegexFilter">🔍 Zeilen mit Regex-Pattern ignorieren</label>
+                </div>
+                
+                <div id="regex-input-container" style="margin-top: 8px; display: none;">
+                    <input type="text" id="regexPattern" placeholder="z.B. ^\d{4}-\d{2}-\d{2}.*timestamp.*" 
+                           value="(created_at|updated_at|published_at).*\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
+                           style="width: 100%; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-family: monospace; font-size: 12px;">
+                    <small style="color: #6c757d; display: block; margin-top: 3px; font-size: 11px;">
+                        💡 Aktuelles Pattern filtert JSON-Zeilen mit created_at, updated_at, published_at + Timestamps
+                    </small>
+                </div>
+
+                <div class="checkbox-wrapper" style="margin-top: 12px;">
+                    <input type="checkbox" id="customContext">
+                    <label for="customContext">📄 Kontext-Zeilen anpassen</label>
+                </div>
+
+                <div id="context-input-container" style="margin-top: 8px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label for="contextBefore" style="font-size: 0.9rem; color: #495057;">Davor:</label>
+                            <input type="number" id="contextBefore" value="3" min="0" max="10" 
+                                   style="width: 50px; padding: 4px; border: 1px solid #dee2e6; border-radius: 3px; text-align: center; font-size: 12px;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <label for="contextAfter" style="font-size: 0.9rem; color: #495057;">Danach:</label>
+                            <input type="number" id="contextAfter" value="3" min="0" max="10" 
+                                   style="width: 50px; padding: 4px; border: 1px solid #dee2e6; border-radius: 3px; text-align: center; font-size: 12px;">
+                        </div>
+                        <small style="color: #6c757d; font-size: 11px;">Zeilen vor/nach Änderungen</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-1" class="tab-content">
+            <div id="result-container" class="result-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Dateien werden verglichen...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-warning" onclick="resetTool()">🔄 Neustart</button>
+            <div>
+                <button class="btn btn-secondary" id="btn-back" onclick="switchTab(0)" disabled>← Zurück</button>
+                <button class="btn btn-primary" id="btn-next" onclick="compareFiles()" disabled>Vergleichen →</button>
+                <button class="btn btn-success" id="btn-save" onclick="saveResult()" disabled style="display: none;">💾 Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentTab = 0;
+        let file1 = null;
+        let file2 = null;
+        let comparisonResult = '';
+        let debugMode = false;
+
+        // Debug functions
+        function toggleDebug() {
+            debugMode = !debugMode;
+            const panel = document.getElementById('debug-panel');
+            panel.style.display = debugMode ? 'block' : 'none';
+            updateDebug();
+        }
+
+        function updateDebug() {
+            if (!debugMode) return;
+            const content = document.getElementById('debug-content');
+            content.innerHTML = `
+                File1: ${file1 ? file1.name : 'None'}<br>
+                File2: ${file2 ? file2.name : 'None'}<br>
+                Can Compare: ${file1 && file2 ? 'Yes' : 'No'}<br>
+                Current Tab: ${currentTab}<br>
+                Time: ${new Date().toLocaleTimeString()}
+            `;
+        }
+
+        // File selection functions
+        function selectFile1() {
+            document.getElementById('file1').click();
+        }
+
+        function selectFile2() {
+            document.getElementById('file2').click();
+        }
+
+        // File handling functions
+        function handleFile1(file) {
+            file1 = file;
+            updateFileDisplay('file1-name', file1);
+            updateButtons();
+            updateDebug();
+        }
+
+        function handleFile2(file) {
+            file2 = file;
+            updateFileDisplay('file2-name', file2);
+            updateButtons();
+            updateDebug();
+        }
+
+        function updateFileDisplay(elementId, file) {
+            const element = document.getElementById(elementId);
+            const selector = element.closest('.file-selector');
+            
+            if (file) {
+                element.textContent = file.name;
+                element.style.display = 'block';
+                selector.classList.add('has-file');
+            } else {
+                element.textContent = '';
+                element.style.display = 'none';
+                selector.classList.remove('has-file');
+            }
+        }
+
+        function updateButtons() {
+            const canProceed = file1 && file2;
+            document.getElementById('btn-next').disabled = !canProceed;
+            document.getElementById('tab-result').disabled = !canProceed;
+        }
+
+        // Event setup
+        function setupEventListeners() {
+            // File input events
+            document.getElementById('file1').addEventListener('change', function(e) {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleFile1(e.target.files[0]);
+                }
+            });
+
+            document.getElementById('file2').addEventListener('change', function(e) {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleFile2(e.target.files[0]);
+                }
+            });
+
+            // Regex filter toggle
+            document.getElementById('useRegexFilter').addEventListener('change', function() {
+                const container = document.getElementById('regex-input-container');
+                container.style.display = this.checked ? 'block' : 'none';
+            });
+
+            // Context lines toggle
+            document.getElementById('customContext').addEventListener('change', function() {
+                const container = document.getElementById('context-input-container');
+                container.style.display = this.checked ? 'block' : 'none';
+            });
+
+            setupGlobalDragAndDrop();
+            setupDragAndDrop('file1', handleFile1);
+            setupDragAndDrop('file2', handleFile2);
+        }
+
+        function setupGlobalDragAndDrop() {
+            console.log('🔗 Setting up global drag and drop...');
+            const dropZone = document.getElementById('drop-zone-all');
+            let dragCounter = 0;
+
+            // Prevent default behavior on document level
+            document.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter++;
+                dropZone.classList.add('active');
+                console.log('🎯 Drag enter - counter:', dragCounter);
+            });
+
+            document.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter--;
+                if (dragCounter === 0) {
+                    dropZone.classList.remove('active');
+                    console.log('🎯 Drag leave - hiding drop zone');
+                }
+            });
+
+            document.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            document.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dragCounter = 0;
+                dropZone.classList.remove('active');
+                
+                const files = Array.from(e.dataTransfer.files);
+                console.log(`🎯 Global drop detected: ${files.length} files`);
+                console.log('📋 File details:', files.map(f => f.name));
+                
+                if (files.length > 0) {
+                    handleGlobalFileDrop(files);
+                }
+            });
+            
+            console.log('✅ Global drag and drop set up successfully');
+        }
+
+        function handleGlobalFileDrop(files) {
+            console.log(`🎯 Global drop: ${files.length} file(s)`);
+            
+            if (files.length >= 2) {
+                handleFile1(files[0]);
+                handleFile2(files[1]);
+                showMessage(`📁 ${files.length} Dateien empfangen. Die ersten beiden wurden automatisch zugeordnet.`, 'success');
+                console.log(`✅ Auto-assigned: ${files[0].name} → File1, ${files[1].name} → File2`);
+            } else if (files.length === 1) {
+                if (!file1) {
+                    handleFile1(files[0]);
+                    console.log(`✅ ${files[0].name} → File1 (empty slot)`);
+                } else if (!file2) {
+                    handleFile2(files[0]);
+                    console.log(`✅ ${files[0].name} → File2 (empty slot)`);
+                } else {
+                    handleFile1(files[0]);
+                    console.log(`🔄 ${files[0].name} → File1 (replaced)`);
+                    showMessage('🔄 Referenzdatei wurde ersetzt.', 'success');
+                }
+            }
+        }
+
+        function setupDragAndDrop(fileId, handler) {
+            const selector = document.querySelector(`#${fileId}`).closest('.file-selector');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                selector.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                selector.addEventListener(eventName, function(e) {
+                    selector.classList.add('drag-over');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                selector.addEventListener(eventName, function(e) {
+                    selector.classList.remove('drag-over');
+                }, false);
+            });
+
+            selector.addEventListener('drop', function(e) {
+                console.log(`📁 Individual drop on ${fileId}:`, e.dataTransfer.files.length, 'files');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handler(files[0]);
+                    console.log(`✅ Individual drop: ${files[0].name} → ${fileId}`);
+                }
+            }, false);
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success' : 'error';
+            messageDiv.textContent = text;
+            
+            const container = document.querySelector('.tab-content.active');
+            container.insertBefore(messageDiv, container.firstChild);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 4000);
+        }
+
+        // Tab functions
+        function switchTab(index) {
+            if (index === 1 && (!file1 || !file2)) {
+                return;
+            }
+
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            contents.forEach((content, i) => {
+                if (i === index) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+
+            currentTab = index;
+            updateTabButtons();
+            updateDebug();
+        }
+
+        function updateTabButtons() {
+            const backBtn = document.getElementById('btn-back');
+            const nextBtn = document.getElementById('btn-next');
+            const saveBtn = document.getElementById('btn-save');
+
+            if (currentTab === 0) {
+                backBtn.disabled = true;
+                nextBtn.style.display = 'inline-flex';
+                saveBtn.style.display = 'none';
+                nextBtn.disabled = !file1 || !file2;
+            } else {
+                backBtn.disabled = false;
+                nextBtn.style.display = 'none';
+                saveBtn.style.display = 'inline-flex';
+                saveBtn.disabled = !comparisonResult;
+            }
+        }
+
+        function resetTool() {
+            file1 = null;
+            file2 = null;
+            comparisonResult = '';
+            
+            document.getElementById('file1').value = '';
+            document.getElementById('file2').value = '';
+            updateFileDisplay('file1-name', null);
+            updateFileDisplay('file2-name', null);
+            
+            document.getElementById('fastMode').checked = false;
+            document.getElementById('useRegexFilter').checked = false;
+            document.getElementById('regexPattern').value = '';
+            document.getElementById('regex-input-container').style.display = 'none';
+            
+            document.getElementById('result-container').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Dateien werden verglichen...</div>
+                </div>
+            `;
+            
+            switchTab(0);
+            updateButtons();
+            updateDebug();
+        }
+
+        // Comparison functions
+        async function compareFiles() {
+            if (!file1 || !file2) {
+                return;
+            }
+
+            switchTab(1);
+            
+            const resultContainer = document.getElementById('result-container');
+            resultContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Dateien werden verglichen...</div>
+                    <div style="font-size: 12px; margin-top: 10px; opacity: 0.7;">
+                        ${file1.name} vs ${file2.name}
+                    </div>
+                </div>
+            `;
+
+            try {
+                const result = await performComparison(file1, file2);
+                resultContainer.innerHTML = result;
+                comparisonResult = result;
+                updateTabButtons();
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Fehler beim Vergleich:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function performComparison(file1, file2) {
+            const isZip1 = file1.name.toLowerCase().endsWith('.zip');
+            const isZip2 = file2.name.toLowerCase().endsWith('.zip');
+            const fastMode = document.getElementById('fastMode').checked;
+
+            console.log('🔍 Starting comparison:', file1.name, 'vs', file2.name);
+            console.log('📦 Fast mode:', fastMode, 'ZIP1:', isZip1, 'ZIP2:', isZip2);
+
+            try {
+                if (isZip1 && isZip2) {
+                    console.log('🗂️ Comparing two ZIP files');
+                    return await compareZipFiles(file1, file2, fastMode);
+                } else if (isZip1) {
+                    console.log('🗂️➡️📄 Comparing ZIP with single file');
+                    const zipFiles = await getAllFilesFromZip(file1);
+                    if (zipFiles.length === 0) {
+                        throw new Error(`Keine lesbaren Textdateien in ${file1.name} gefunden`);
+                    }
+                    const singleFileContent = await readTextFile(file2);
+                    return compareSingleFileToZip(zipFiles, singleFileContent, file1.name, file2.name);
+                } else if (isZip2) {
+                    console.log('📄➡️🗂️ Comparing single file with ZIP');
+                    const zipFiles = await getAllFilesFromZip(file2);
+                    if (zipFiles.length === 0) {
+                        throw new Error(`Keine lesbaren Textdateien in ${file2.name} gefunden`);
+                    }
+                    const singleFileContent = await readTextFile(file1);
+                    return compareSingleFileToZip(zipFiles, singleFileContent, file2.name, file1.name, true);
+                } else {
+                    console.log('📄📄 Comparing two text files');
+                    const content1 = await readTextFile(file1);
+                    const content2 = await readTextFile(file2);
+                    return compareTwoFiles(content1, content2, file1.name, file2.name);
+                }
+            } catch (error) {
+                console.error('❌ Comparison failed:', error);
+                throw error;
+            }
+        }
+
+        async function getAllFilesFromZip(zipFile) {
+            console.log(`📦 Loading ZIP file: ${zipFile.name} (${zipFile.size} bytes)`);
+            
+            if (!window.JSZip) {
+                throw new Error('JSZip library not available! Make sure jszip.min.js is loaded.');
+            }
+            
+            try {
+                const zip = await JSZip.loadAsync(zipFile);
+                const files = [];
+                const textExtensions = ['.txt', '.json', '.yml', '.yaml', '.xml', '.csv', '.log', '.md', '.config', '.ini', '.ps1', '.bat', '.cmd', '.js', '.css', '.html', '.sql'];
+
+                console.log(`📂 ZIP contains ${Object.keys(zip.files).length} entries`);
+
+                for (const [relativePath, file] of Object.entries(zip.files)) {
+                    if (!file.dir) {
+                        const extension = getFileExtension(file.name).toLowerCase();
+                        
+                        if (textExtensions.includes(extension) || extension === '') {
+                            try {
+                                const content = await file.async('text');
+                                const lines = content.split(/\r?\n/);
+                                files.push({
+                                    content: lines,
+                                    relativePath: relativePath,
+                                    fileName: file.name
+                                });
+                                console.log(`✅ Added file: ${relativePath} (${lines.length} lines)`);
+                            } catch (e) {
+                                console.warn(`⚠️ Could not read file as text: ${relativePath}`, e);
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`📊 Total readable files found: ${files.length}`);
+                return files;
+            } catch (error) {
+                console.error('❌ Error reading ZIP file:', error);
+                throw new Error(`Fehler beim Lesen der ZIP-Datei ${zipFile.name}: ${error.message}`);
+            }
+        }
+
+        function getFileExtension(filename) {
+            const lastDotIndex = filename.lastIndexOf('.');
+            if (lastDotIndex === -1 || lastDotIndex === filename.length - 1) {
+                return '';
+            }
+            return filename.substring(lastDotIndex);
+        }
+
+        async function compareZipFiles(zip1, zip2, fastMode) {
+            const zip1Files = await getAllFilesFromZip(zip1);
+            const zip2Files = await getAllFilesFromZip(zip2);
+
+            if (fastMode) {
+                return await compareZipFilesFast(zip1Files, zip2Files, zip1.name, zip2.name);
+            } else {
+                return await compareZipFilesFull(zip1Files, zip2Files, zip1.name, zip2.name);
+            }
+        }
+
+        async function compareZipFilesFast(zip1Files, zip2Files, zip1Name, zip2Name) {
+            const zip1Hash = {};
+            const zip2Hash = {};
+
+            // Apply regex filter if enabled before hashing
+            zip1Files.forEach(file => {
+                const filteredContent = applyRegexFilter(file.content);
+                zip1Hash[file.relativePath] = { ...file, content: filteredContent };
+            });
+
+            zip2Files.forEach(file => {
+                const filteredContent = applyRegexFilter(file.content);
+                zip2Hash[file.relativePath] = { ...file, content: filteredContent };
+            });
+
+            const changedFiles = [];
+            const missingIn2 = [];
+            const missingIn1 = [];
+
+            // Check files in zip1
+            for (const relativePath of Object.keys(zip1Hash)) {
+                if (zip2Hash[relativePath]) {
+                    const hash1 = await hashContent(zip1Hash[relativePath].content.join('\n'));
+                    const hash2 = await hashContent(zip2Hash[relativePath].content.join('\n'));
+                    if (hash1 !== hash2) {
+                        changedFiles.push(relativePath);
+                    }
+                    delete zip2Hash[relativePath];
+                } else {
+                    missingIn2.push(relativePath);
+                }
+            }
+
+            // Remaining files in zip2 are missing in zip1
+            for (const relativePath of Object.keys(zip2Hash)) {
+                missingIn1.push(relativePath);
+            }
+
+            // Sort arrays
+            changedFiles.sort();
+            missingIn1.sort();
+            missingIn2.sort();
+
+            let result = '<div class="diff-summary">═══ ZIP-SCHNELLVERGLEICH ═══</div>';
+
+            if (changedFiles.length === 0 && missingIn1.length === 0 && missingIn2.length === 0) {
+                result += '<div class="diff-info">✅ Alle Dateien sind identisch.</div>';
+            } else {
+                if (changedFiles.length > 0) {
+                    result += '<div class="diff-changed">📝 Geänderte Dateien (unterschiedlicher Inhalt):</div>';
+                    changedFiles.forEach(file => {
+                        result += `<div class="diff-changed">  • ${file.replace(/\\/g, '/')}</div>`;
+                    });
+                }
+
+                if (missingIn2.length > 0) {
+                    result += `<div class="diff-missing-in-second">📁 Dateien nur in ${zip1Name} (fehlen in ${zip2Name}):</div>`;
+                    missingIn2.forEach(file => {
+                        result += `<div class="diff-missing-in-second">  • ${file.replace(/\\/g, '/')}</div>`;
+                    });
+                }
+
+                if (missingIn1.length > 0) {
+                    result += `<div class="diff-missing-in-first">📁 Dateien nur in ${zip2Name} (fehlen in ${zip1Name}):</div>`;
+                    missingIn1.forEach(file => {
+                        result += `<div class="diff-missing-in-first">  • ${file.replace(/\\/g, '/')}</div>`;
+                    });
+                }
+                
+                // Summary statistics
+                result += '<div class="diff-summary">📊 Zusammenfassung:</div>';
+                result += `<div class="diff-info">  • ${changedFiles.length} Datei(en) geändert</div>`;
+                result += `<div class="diff-missing-in-second">  • ${missingIn2.length} Datei(en) nur in ${zip1Name}</div>`;
+                result += `<div class="diff-missing-in-first">  • ${missingIn1.length} Datei(en) nur in ${zip2Name}</div>`;
+                
+                // Show if regex filter was applied
+                const useFilter = document.getElementById('useRegexFilter').checked;
+                if (useFilter) {
+                    const pattern = document.getElementById('regexPattern').value.trim();
+                    result += `<div class="diff-info" style="margin-top: 8px;">🔍 Regex-Filter angewendet: <code>${pattern}</code></div>`;
+                }
+            }
+
+            return result;
+        }
+
+        function compareArraysDetailed(arr1, arr2) {
+            console.log(`🔍 Detaillierter Vergleich: Array1=${arr1.length} Zeilen, Array2=${arr2.length} Zeilen`);
+            
+            // Use Myers diff algorithm for better block detection
+            const result = myersDiff(arr1, arr2);
+            
+            const changes = result.filter(r => r.type !== 'equal').length;
+            console.log(`📊 ${changes} Änderungen von ${result.length} Vergleichen gefunden`);
+            
+            return result;
+        }
+
+        function myersDiff(arr1, arr2) {
+            // Simple LCS-based diff for better block recognition
+            const lcs = longestCommonSubsequence(arr1, arr2);
+            return buildDiffFromLCS(arr1, arr2, lcs);
+        }
+
+        function longestCommonSubsequence(arr1, arr2) {
+            const n = arr1.length;
+            const m = arr2.length;
+            const dp = Array(n + 1).fill().map(() => Array(m + 1).fill(0));
+            
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= m; j++) {
+                    if (arr1[i - 1] === arr2[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+            
+            // Backtrack to find LCS
+            const lcs = [];
+            let i = n;
+            let j = m;
+            while (i > 0 && j > 0) {
+                if (arr1[i - 1] === arr2[j - 1]) {
+                    lcs.unshift({ i1: i - 1, i2: j - 1, value: arr1[i - 1] });
+                    i--;
+                    j--;
+                } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                    i--;
+                } else {
+                    j--;
+                }
+            }
+            
+            return lcs;
+        }
+
+        function buildDiffFromLCS(arr1, arr2, lcs) {
+            const result = [];
+            let i1 = 0;
+            let i2 = 0;
+            let lcsIndex = 0;
+            
+            while (i1 < arr1.length || i2 < arr2.length || lcsIndex < lcs.length) {
+                if (lcsIndex < lcs.length && i1 === lcs[lcsIndex].i1 && i2 === lcs[lcsIndex].i2) {
+                    // Common line
+                    result.push({ type: 'equal', value: lcs[lcsIndex].value, line1: i1, line2: i2 });
+                    i1++;
+                    i2++;
+                    lcsIndex++;
+                } else if (lcsIndex < lcs.length && i1 < lcs[lcsIndex].i1 && i2 < lcs[lcsIndex].i2) {
+                    // Both sides have changes
+                    const endI1 = lcs[lcsIndex].i1;
+                    const endI2 = lcs[lcsIndex].i2;
+                    
+                    // Add all removals first
+                    while (i1 < endI1) {
+                        result.push({ type: 'removed', value: arr1[i1], line1: i1, line2: -1 });
+                        i1++;
+                    }
+                    
+                    // Then add all additions
+                    while (i2 < endI2) {
+                        result.push({ type: 'added', value: arr2[i2], line1: -1, line2: i2 });
+                        i2++;
+                    }
+                } else if (lcsIndex < lcs.length && i1 < lcs[lcsIndex].i1) {
+                    // Only arr1 has changes (removals)
+                    while (i1 < lcs[lcsIndex].i1) {
+                        result.push({ type: 'removed', value: arr1[i1], line1: i1, line2: -1 });
+                        i1++;
+                    }
+                } else if (lcsIndex < lcs.length && i2 < lcs[lcsIndex].i2) {
+                    // Only arr2 has changes (additions)
+                    while (i2 < lcs[lcsIndex].i2) {
+                        result.push({ type: 'added', value: arr2[i2], line1: -1, line2: i2 });
+                        i2++;
+                    }
+                } else {
+                    // End of arrays
+                    if (i1 < arr1.length) {
+                        result.push({ type: 'removed', value: arr1[i1], line1: i1, line2: -1 });
+                        i1++;
+                    } else if (i2 < arr2.length) {
+                        result.push({ type: 'added', value: arr2[i2], line1: -1, line2: i2 });
+                        i2++;
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        function generateUnifiedDiff(content1, content2) {
+            const diff = compareArraysDetailed(content1, content2);
+            
+            // Get context settings
+            const useCustomContext = document.getElementById('customContext').checked;
+            const contextBefore = useCustomContext ? parseInt(document.getElementById('contextBefore').value) || 3 : 3;
+            const contextAfter = useCustomContext ? parseInt(document.getElementById('contextAfter').value) || 3 : 3;
+            
+            let result = '';
+            let consecutiveEqual = 0;
+
+            for (let i = 0; i < diff.length; i++) {
+                const item = diff[i];
+                const escapedContent = escapeHtml(item.value);
+                
+                switch (item.type) {
+                    case 'removed':
+                        result += `<div class="diff-removed">-${escapedContent}</div>`;
+                        consecutiveEqual = 0;
+                        break;
+                    case 'added':
+                        result += `<div class="diff-added">+${escapedContent}</div>`;
+                        consecutiveEqual = 0;
+                        break;
+                    case 'equal':
+                        consecutiveEqual++;
+                        
+                        // Show context lines before and after changes
+                        const prevChange = i > 0 && diff[i-1].type !== 'equal';
+                        const nextChange = i < diff.length - 1 && 
+                            diff.slice(i + 1, i + contextAfter + 1).some(d => d.type !== 'equal');
+                        
+                        // Show if within context range
+                        const withinBeforeContext = prevChange && consecutiveEqual <= contextAfter;
+                        const withinAfterContext = nextChange && consecutiveEqual <= contextBefore;
+                        
+                        if (withinBeforeContext || withinAfterContext) {
+                            result += `<div style="color: #666; opacity: 0.7; margin: 0; padding: 1px 0;"> ${escapedContent}</div>`;
+                        }
+                        // Show ellipsis for large gaps
+                        else if (consecutiveEqual === Math.max(contextBefore, contextAfter) + 1) {
+                            const remainingEqual = diff.slice(i).findIndex(d => d.type !== 'equal');
+                            if (remainingEqual > (contextBefore + contextAfter + 2)) {
+                                result += `<div style="color: #555; font-style: italic; text-align: center; margin: 4px 0; padding: 2px;">⋯ ${remainingEqual - (contextBefore + contextAfter)} identische Zeilen ⋯</div>`;
+                            }
+                        }
+                        break;
+                }
+            }
+
+            return result;
+        }
+
+        function countDiffBlocks(diff) {
+            let blocks = 0;
+            let inBlock = false;
+            let currentBlockType = null;
+            
+            for (const item of diff) {
+                if (item.type === 'equal') {
+                    if (inBlock) {
+                        blocks++;
+                        inBlock = false;
+                        currentBlockType = null;
+                    }
+                } else {
+                    if (!inBlock || currentBlockType !== item.type) {
+                        if (inBlock) blocks++;
+                        inBlock = true;
+                        currentBlockType = item.type;
+                    }
+                }
+            }
+            
+            if (inBlock) blocks++;
+            
+            return blocks;
+        }
+
+        async function hashContent(content) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(content);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function compareZipFilesFull(zip1Files, zip2Files, zip1Name, zip2Name) {
+            const zip1Hash = {};
+            const zip2Hash = {};
+
+            zip1Files.forEach(file => {
+                zip1Hash[file.relativePath] = file;
+            });
+
+            zip2Files.forEach(file => {
+                zip2Hash[file.relativePath] = file;
+            });
+
+            let result = '';
+            let totalFiles = 0;
+            let totalAdded = 0;
+            let totalRemoved = 0;
+            let filesAdded = 0;
+            let filesRemoved = 0;
+
+            // Compare files from zip1
+            for (const file1 of zip1Files) {
+				const file2 = zip2Hash[file1.relativePath];
+
+				if (file2) {
+					// PATCH: Filter auf beide Dateien anwenden, wenn aktiviert
+					const filtered1 = applyRegexFilter(file1.content);
+					const filtered2 = applyRegexFilter(file2.content);
+
+					const diff = compareArraysDetailed(filtered1, filtered2);
+					const changesOnly = diff.filter(d => d.type !== 'equal');
+
+                    if (changesOnly.length > 0) {
+						const added = changesOnly.filter(d => d.type === 'added').length;
+						const removed = changesOnly.filter(d => d.type === 'removed').length;
+						const filteredLines1 = file1.content.length - filtered1.length;
+						const filteredLines2 = file2.content.length - filtered2.length;
+
+						result += `<div class="diff-header">--- ${zip1Name}/${file1.relativePath}</div>\n`;
+						result += `<div class="diff-header">+++ ${zip2Name}/${file2.relativePath}</div>\n`;
+						if (filteredLines1 + filteredLines2 > 0) {
+							result += `<div class="diff-info">🗑️ Gefilterte Zeilen: ${filteredLines1} (alt), ${filteredLines2} (neu)</div>\n`;
+						}
+						result += generateUnifiedDiff(filtered1, filtered2);
+						result += '\n';
+
+						totalFiles++;
+						totalAdded += added;
+						totalRemoved += removed;
+					}
+
+
+                    delete zip2Hash[file1.relativePath];
+                } else {
+                    result += `<div class="diff-header">--- ${zip1Name}/${file1.relativePath}</div>\n`;
+                    result += `<div class="diff-header">+++ /dev/null</div>\n`;
+                    result += `<div class="diff-removed">📁 Datei wurde entfernt (${file1.content.length} Zeilen)</div>\n`;
+
+                    filesRemoved++;
+                    totalFiles++;
+                    totalRemoved += file1.content.length;
+                }
+            }
+
+            // Remaining files from zip2 (added)
+            for (const file2 of Object.values(zip2Hash)) {
+                result += `<div class="diff-header">--- /dev/null</div>\n`;
+                result += `<div class="diff-header">+++ ${zip2Name}/${file2.relativePath}</div>\n`;
+                result += `<div class="diff-added">📁 Datei wurde hinzugefügt (${file2.content.length} Zeilen)</div>\n`;
+
+                filesAdded++;
+                totalFiles++;
+                totalAdded += file2.content.length;
+            }
+
+            // Summary
+            result += '<div class="diff-summary">═══ GESAMTBERICHT ═══</div>\n';
+
+            const totalChanges = totalAdded + totalRemoved;
+            if (totalChanges === 0 && filesAdded === 0 && filesRemoved === 0) {
+                result += '<div class="diff-info">✅ Alle Dateien sind identisch.</div>\n';
+            } else {
+                result += `<div class="diff-info">📊 ${totalFiles} Datei(en) geändert, ${totalAdded} Einfügung(en)(+), ${totalRemoved} Löschung(en)(-)</div>\n`;
+                if (filesAdded > 0) {
+                    result += `<div class="diff-added">📁 ${filesAdded} Datei(en) hinzugefügt</div>\n`;
+                }
+                if (filesRemoved > 0) {
+                    result += `<div class="diff-removed">📁 ${filesRemoved} Datei(en) entfernt</div>\n`;
+                }
+
+                if (totalChanges > 0) {
+                    const maxWidth = 40;
+                    const addedWidth = Math.round((totalAdded / totalChanges) * maxWidth);
+                    const removedWidth = maxWidth - addedWidth;
+
+                    result += `<div class="diff-added">${'+'.repeat(addedWidth)}</div>`;
+                    result += `<div class="diff-removed">${'-'.repeat(removedWidth)}</div>\n`;
+                }
+            }
+
+            return result;
+        }
+
+        function compareSingleFileToZip(zipFiles, singleFile, zipName, singleFileName, reverse = false) {
+            let result = '';
+            let totalAdded = 0;
+            let totalRemoved = 0;
+
+            zipFiles.forEach(zipFile => {
+                if (reverse) {
+                    result += `<div class="diff-header">--- ${singleFileName}</div>\n`;
+                    result += `<div class="diff-header">+++ ${zipName}/${zipFile.relativePath}</div>\n`;
+                    result += generateUnifiedDiff(singleFile.content, zipFile.content);
+                } else {
+                    result += `<div class="diff-header">--- ${zipName}/${zipFile.relativePath}</div>\n`;
+                    result += `<div class="diff-header">+++ ${singleFileName}</div>\n`;
+                    result += generateUnifiedDiff(zipFile.content, singleFile.content);
+                }
+                result += '\n';
+
+                const diff = reverse ? 
+                    compareArraysDetailed(singleFile.content, zipFile.content) :
+                    compareArraysDetailed(zipFile.content, singleFile.content);
+                
+                const changesOnly = diff.filter(d => d.type !== 'equal');
+                totalAdded += changesOnly.filter(d => d.type === 'added').length;
+                totalRemoved += changesOnly.filter(d => d.type === 'removed').length;
+            });
+
+            const totalChanges = totalAdded + totalRemoved;
+            result += '<div class="diff-summary">═══ GESAMTBERICHT ═══</div>\n';
+            result += `<div class="diff-info">📊 ${zipFiles.length} Datei(en) verglichen, ${totalAdded} Einfügung(en)(+), ${totalRemoved} Löschung(en)(-)</div>\n`;
+
+            if (totalChanges > 0) {
+                const maxWidth = 40;
+                const addedWidth = Math.round((totalAdded / totalChanges) * maxWidth);
+                const removedWidth = maxWidth - addedWidth;
+
+                result += `<div class="diff-added">${'+'.repeat(addedWidth)}</div>`;
+                result += `<div class="diff-removed">${'-'.repeat(removedWidth)}</div>\n`;
+            }
+
+            return result;
+        }
+
+		function applyRegexFilter(content) {
+			console.log('[DEBUG] applyRegexFilter wurde aufgerufen', content?.length);
+			
+			const useFilter = document.getElementById('useRegexFilter').checked;
+			if (!useFilter) return content;
+
+			const pattern = document.getElementById('regexPattern').value.trim();
+
+			console.log('PATTERN:', pattern);
+			console.log('Test-Zeile:', content[0]);
+			console.log('Pattern match:', new RegExp(pattern, 'i').test(content[0]));			
+            
+            try {
+                const regex = new RegExp(pattern, 'i');
+                const filteredContent = content.filter(line => !regex.test(line));
+                
+                console.log(`🔍 Regex-Filter "${pattern}":`);
+                console.log(`📥 Input: ${content.length} Zeilen`);
+                console.log(`📤 Output: ${filteredContent.length} Zeilen`);
+                console.log(`🗑️ Filtered out: ${content.length - filteredContent.length} Zeilen`);
+                
+                // Log first few filtered lines as examples
+                const filteredOut = content.filter(line => regex.test(line));
+                if (filteredOut.length > 0) {
+                    console.log(`💡 Beispiele gefilterter Zeilen:`, filteredOut.slice(0, 5));
+                }
+                
+                // Log first few lines that were NOT filtered to check pattern
+                const notFiltered = content.filter(line => !regex.test(line) && line.includes('_at'));
+                if (notFiltered.length > 0) {
+                    console.log(`⚠️ Zeilen mit '_at' die NICHT gefiltert wurden:`, notFiltered.slice(0, 3));
+                }
+                
+                return filteredContent;
+            } catch (e) {
+                console.warn('⚠️ Ungültiges Regex-Pattern:', pattern, e);
+                return content;
+            }
+        }
+
+        async function readTextFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const content = e.target.result;
+                    const lines = content.split(/\r?\n/);
+                    resolve({
+                        content: lines,
+                        fileName: file.name
+                    });
+                };
+                reader.onerror = reject;
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        function compareTwoFiles(file1, file2, fileName1, fileName2) {
+            console.log(`📊 Vergleiche Dateien: ${fileName1} (${file1.content.length} Zeilen) vs ${fileName2} (${file2.content.length} Zeilen)`);
+            
+            // Apply regex filter if enabled
+            const filteredContent1 = { ...file1, content: applyRegexFilter(file1.content) };
+            const filteredContent2 = { ...file2, content: applyRegexFilter(file2.content) };
+            
+            const filteredLines1 = file1.content.length - filteredContent1.content.length;
+            const filteredLines2 = file2.content.length - filteredContent2.content.length;
+            const totalFilteredLines = filteredLines1 + filteredLines2;
+            
+            if (filteredContent1.content.length !== file1.content.length || 
+                filteredContent2.content.length !== file2.content.length) {
+                console.log(`🔍 Regex-Filter angewendet: ${file1.content.length} → ${filteredContent1.content.length} Zeilen, ${file2.content.length} → ${filteredContent2.content.length} Zeilen`);
+            }
+            
+            let result = `<div class="diff-header">--- ${fileName1}</div>\n`;
+            result += `<div class="diff-header">+++ ${fileName2}</div>\n`;
+
+            // Detailed line-by-line comparison
+            const diff = compareArraysDetailed(filteredContent1.content, filteredContent2.content);
+            console.log(`🔍 Diff-Analyse: ${diff.length} Diff-Einträge`);
+
+            // Count changes and blocks
+            const changesOnly = diff.filter(d => d.type !== 'equal');
+            const totalAdded = changesOnly.filter(d => d.type === 'added').length;
+            const totalRemoved = changesOnly.filter(d => d.type === 'removed').length;
+            const totalChanges = totalAdded + totalRemoved;
+            const diffBlocks = countDiffBlocks(diff);
+            
+            console.log(`📈 Änderungen: ${totalChanges} Zeilen (${totalAdded} hinzugefügt, ${totalRemoved} entfernt), ${diffBlocks} Unterschiede`);
+
+            if (totalChanges === 0) {
+                result += '<div class="diff-info">✅ Dateien sind identisch.</div>\n';
+                console.log('✅ Dateien sind identisch');
+            } else {
+                result += generateUnifiedDiff(filteredContent1.content, filteredContent2.content);
+                console.log('📝 Diff-Ausgabe generiert');
+            }
+
+            result += '\n<div class="diff-summary">═══ GESAMTBERICHT ═══</div>\n';
+
+            if (totalChanges === 0) {
+                result += '<div class="diff-info">✅ Dateien sind identisch.</div>\n';
+            } else {
+                result += `<div class="diff-info">📊 ${diffBlocks} Unterschied(e), ${totalAdded} Einfügung(en)(+), ${totalRemoved} Löschung(en)(-)</div>\n`;
+
+                if (totalChanges > 0) {
+                    const maxWidth = 40;
+                    const addedWidth = Math.round((totalAdded / totalChanges) * maxWidth);
+                    const removedWidth = maxWidth - addedWidth;
+
+                    result += `<div class="diff-added">${'+'.repeat(addedWidth)}</div>`;
+                    result += `<div class="diff-removed">${'-'.repeat(removedWidth)}</div>\n`;
+                }
+                
+                // Show if regex filter was applied
+                const useFilter = document.getElementById('useRegexFilter').checked;
+                if (useFilter) {
+                    const pattern = document.getElementById('regexPattern').value.trim();
+                    result += `<div class="diff-info" style="margin-top: 8px;">🔍 Regex-Filter angewendet: <code>${pattern}</code></div>`;
+                    result += `<div class="diff-info">🗑️ Gefilterte Zeilen: ${totalFilteredLines} (${filteredLines1} aus Datei 1, ${filteredLines2} aus Datei 2)</div>`;
+                }
+            }
+
+            return result;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveResult() {
+            if (!comparisonResult) return;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = comparisonResult;
+            const cleanText = tempDiv.textContent || tempDiv.innerText || '';
+
+            const blob = new Blob([cleanText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `diff-report-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage('✅ Bericht wurde erfolgreich heruntergeladen!', 'success');
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            updateButtons();
+            updateTabButtons();
+            updateDebug();
+        });
+    </script>
+</body>
+</html>
