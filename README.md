@@ -3,6 +3,10 @@ File comparison tool in just one HTML file
 
 An in-browser tool to compare ZIP archives or plain text files side by side with line-level diffs. Supports drag & drop and is available in German and English.
 
+<img width="1914" height="1219" alt="grafik" src="https://github.com/user-attachments/assets/d66f1ae8-154d-4177-bf52-c945f67de7a1" />
+<img width="1849" height="1146" alt="grafik" src="https://github.com/user-attachments/assets/cfb96448-e7a4-4636-8f05-201eeba89195" />
+
+
 ## Features
 
 - Compare two ZIP files (content-aware) or two text files
